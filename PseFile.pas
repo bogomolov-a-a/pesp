@@ -28,6 +28,9 @@ type
   {
     Base class
   }
+
+  { TPseFile }
+
   TPseFile = class(TPersistent)
   private
   protected
@@ -56,6 +59,7 @@ type
     function GetInitHeapSize: UInt64; virtual;
     function GetMaxHeapSize: UInt64; virtual;
     procedure SaveSectionToStream(const ASection: integer; Stream: TStream); virtual; abstract;
+    function GetSizeOfFileImage():Cardinal; virtual;
 
     function GetFriendlyName: string; virtual;
 
@@ -199,6 +203,11 @@ end;
 function TPseFile.GetMaxHeapSize: UInt64;
 begin
   Result := 1048576;
+end;
+
+function TPseFile.GetSizeOfFileImage(): Cardinal;
+begin
+  Result:=0;
 end;
 
 function TPseFile.GetHasDebugInfo: boolean;

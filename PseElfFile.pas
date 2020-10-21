@@ -23,13 +23,16 @@ type
       TIS Committee. Tool Interface Standard (TIS) Executable and Linking
         Format (ELF) Specification. TIS Committee, 1995.
   }
+
+  { TPseElfFile }
+
   TPseElfFile = class(TPseFile)
   private
     FFileHeader32: TElf32Header;
     FFileHeader64: TElf64Header;
     FProgramHeader32: array of TElf32ProgramHeader;
     FProgramHeader64: array of TElf64ProgramHeader;
-    FSizeOfImage: Cardinal;
+    FSizeOfImage: cardinal;
     function GetMachine: Elf32_Half;
     procedure ReadExports;
     procedure ReadImports;
@@ -49,7 +52,8 @@ type
     function GetEntryPoint: UInt64; override;
 
     function GetImageBase: UInt64;
-    function GetSizeOfImage: Cardinal;
+    function GetSizeOfImage: cardinal;
+    function GetSizeOfFileImage: cardinal;override;
 
     function GetFriendlyName: string; override;
 
@@ -75,26 +79,28 @@ end;
 function TPseElfFile.LoadFromStream(Stream: TStream): boolean;
 begin
   Result := inherited;
-  if Result then begin
+  if Result then
+  begin
     FStream.Position := 0;
     FStream.Read(FFileHeader32, SizeOf(TElf32Header));
 
     // Check for ELF format
     if FFileHeader32.e_ident[EI_MAG0] <> $7f then
-      Exit(false);
+      Exit(False);
     if FFileHeader32.e_ident[EI_MAG1] <> Ord('E') then
-      Exit(false);
+      Exit(False);
     if FFileHeader32.e_ident[EI_MAG2] <> Ord('L') then
-      Exit(false);
+      Exit(False);
     if FFileHeader32.e_ident[EI_MAG3] <> Ord('F') then
-      Exit(false);
+      Exit(False);
 
     // 32 or 64 Bit
     if FFileHeader32.e_ident[EI_CLASS] = ELFCLASS64 then
       FBitness := pseb64
     else
       FBitness := pseb32;
-    if Is64 then begin
+    if Is64 then
+    begin
       // Read 64 bit header, differs in size
       FStream.Position := 0;
       FStream.Read(FFileHeader64, SizeOf(TElf64Header));
@@ -116,11 +122,14 @@ begin
   // In contrast to PE files, ELF files do not define an image base, so
   // find the section with the entry point and return its target address
   ep := GetEntryPoint;
-  for i := 0 to FSections.Count - 1 do begin
+  for i := 0 to FSections.Count - 1 do
+  begin
     sec := FSections[i];
-    if (saCode in sec.Attribs) or ((saExecuteable in sec.Attribs)) then begin
+    if (saCode in sec.Attribs) or ((saExecuteable in sec.Attribs)) then
+    begin
       // Section must be executeable
-      if (ep >= sec.Address) and (ep <= (sec.Address + sec.Size)) then begin
+      if (ep >= sec.Address) and (ep <= (sec.Address + sec.Size)) then
+      begin
         // Entrypoint is inside the section
         Result := sec.Address;
         Exit;
@@ -143,7 +152,8 @@ var
   i: integer;
   sec: TPseSection;
 begin
-  for i := 0 to FSections.Count - 1 do begin
+  for i := 0 to FSections.Count - 1 do
+  begin
     sec := FSections[i];
     sec.Name := ReadSectionString(sec.NameIndex);
   end;
@@ -161,30 +171,33 @@ end;
 
 function TPseElfFile.ReadSectionString(const Index: integer): string;
 var
-  cur_pos: Int64;
-  name: array[0..255] of AnsiChar;
+  cur_pos: int64;
+  Name: array[0..255] of AnsiChar;
   strtab: TPseSection;
 begin
   Result := '(Unknown)';
   if Index = 0 then
     Exit;
 
-  if IS64 then begin
-    if FFileHeader64.e_shstrndx =  SHN_UNDEF then
+  if IS64 then
+  begin
+    if FFileHeader64.e_shstrndx = SHN_UNDEF then
       Exit;
     strtab := FSections[FFileHeader64.e_shstrndx];
     FStream.Seek(strtab.FileOffset + Index, soFromBeginning);
-  end else begin
-    if FFileHeader32.e_shstrndx =  SHN_UNDEF then
+  end
+  else
+  begin
+    if FFileHeader32.e_shstrndx = SHN_UNDEF then
       Exit;
     strtab := FSections[FFileHeader32.e_shstrndx];
     FStream.Seek(strtab.FileOffset + Index, soFromBeginning);
   end;
 
   cur_pos := FStream.Position;
-  FStream.Read(name, 256);
+  FStream.Read(Name, 256);
   FStream.Position := cur_pos;
-  Result := string(StrPas(PAnsiChar(@name)));
+  Result := string(StrPas(PAnsiChar(@Name)));
 end;
 
 procedure TPseElfFile.ReadSections;
@@ -198,11 +211,13 @@ begin
   FSections.Clear;
   FSizeOfImage := 0;
 
-  if IS64 then begin
+  if IS64 then
+  begin
     FStream.Seek(FFileHeader64.e_shoff, soFromBeginning);
     n := FFileHeader64.e_shnum;
 
-    for i := 0 to n - 1 do begin
+    for i := 0 to n - 1 do
+    begin
       attribs := [];
       FStream.Read(sec64, SizeOf(TElf64SectionHeader));
       sec := FSections.New;
@@ -233,10 +248,13 @@ begin
       if sec64.sh_addr <> 0 then
         Inc(FSizeOfImage, sec64.sh_size);
     end;
-  end else begin
+  end
+  else
+  begin
     FStream.Seek(FFileHeader32.e_shoff, soFromBeginning);
     n := FFileHeader32.e_shnum;
-    for i := 0 to n - 1 do begin
+    for i := 0 to n - 1 do
+    begin
       attribs := [];
       FStream.Read(sec32, SizeOf(TElf32SectionHeader));
       sec := FSections.New;
@@ -271,18 +289,23 @@ procedure TPseElfFile.ReadProgramHeaders;
 var
   i, n: integer;
 begin
-  if IS64 then begin
+  if IS64 then
+  begin
     FStream.Seek(FFileHeader64.e_phoff, soFromBeginning);
     n := FFileHeader64.e_phnum;
     SetLength(FProgramHeader64, n);
-    for i := 0 to n - 1 do begin
+    for i := 0 to n - 1 do
+    begin
       FStream.Read(FProgramHeader64[i], FFileHeader64.e_phentsize);
     end;
-  end else begin
+  end
+  else
+  begin
     FStream.Seek(FFileHeader32.e_phoff, soFromBeginning);
     n := FFileHeader32.e_phnum;
     SetLength(FProgramHeader32, n);
-    for i := 0 to n - 1 do begin
+    for i := 0 to n - 1 do
+    begin
       FStream.Read(FProgramHeader32[i], FFileHeader32.e_phentsize);
     end;
   end;
@@ -291,12 +314,12 @@ end;
 procedure TPseElfFile.SaveSectionToStream(const ASection: integer; Stream: TStream);
 var
   sec: TPseSection;
-  o, s: Int64;
+  o, s: int64;
 begin
   sec := FSections[ASection];
   o := sec.FileOffset;
   FStream.Seek(o, soFromBeginning);
-  s := Min(Int64(sec.Size), Int64(FStream.Size - o));
+  s := Min(int64(sec.Size), int64(FStream.Size - o));
   Stream.CopyFrom(FStream, s);
 end;
 
@@ -305,22 +328,39 @@ var
   i: integer;
 begin
   Result := $FFFFFFFFFFFFFF;
-  if Is64 then begin
-    for i := Low(FProgramHeader64) to High(FProgramHeader64) do begin
-      if (FProgramHeader64[i].p_type = PT_LOAD) and (Result > FProgramHeader64[i].p_vaddr) then
+  if Is64 then
+  begin
+    for i := Low(FProgramHeader64) to High(FProgramHeader64) do
+    begin
+      if (FProgramHeader64[i].p_type = PT_LOAD) and
+        (Result > FProgramHeader64[i].p_vaddr) then
         Result := FProgramHeader64[i].p_vaddr;
     end;
-  end else begin
-    for i := Low(FProgramHeader32) to High(FProgramHeader32) do begin
-      if  (FProgramHeader32[i].p_type = PT_LOAD) and (Result > FProgramHeader32[i].p_vaddr) then
+  end
+  else
+  begin
+    for i := Low(FProgramHeader32) to High(FProgramHeader32) do
+    begin
+      if (FProgramHeader32[i].p_type = PT_LOAD) and
+        (Result > FProgramHeader32[i].p_vaddr) then
         Result := FProgramHeader32[i].p_vaddr;
     end;
   end;
 end;
 
-function TPseElfFile.GetSizeOfImage: Cardinal;
+function TPseElfFile.GetSizeOfImage: cardinal;
 begin
   Result := FSizeOfImage;
+end;
+
+function TPseElfFile.GetSizeOfFileImage: cardinal;
+begin
+  if IS64 then
+  begin
+    Result := FFileHeader64.e_shoff +FFileHeader64.e_shnum*SizeOf(TElf64SectionHeader);
+    exit;
+  end;
+  Result := FFileHeader32.e_shoff+FFileHeader32.e_shnum*SizeOf(TElf32SectionHeader);
 end;
 
 function TPseElfFile.GetMachine: Elf32_Half;
@@ -336,25 +376,25 @@ begin
   case GetMachine of
     EM_386,
     EM_X86_64:
-      begin
-        Result := pseaX86;
-      end;
+    begin
+      Result := pseaX86;
+    end;
     EM_MIPS:
-      begin
-        Result := pseaMIPS;
-      end;
+    begin
+      Result := pseaMIPS;
+    end;
     EM_PPC:
-      begin
-        Result := pseaPPC;
-      end;
+    begin
+      Result := pseaPPC;
+    end;
     EM_ARM:
-      begin
-        Result := pseaARM;
-      end;
+    begin
+      Result := pseaARM;
+    end;
     EM_AARCH64:
-      begin
-        Result := pseaARM64;
-      end;
+    begin
+      Result := pseaARM64;
+    end;
     else
       Result := pseaUnknown;
   end;
@@ -371,17 +411,20 @@ begin
     EM_X86_64:
       Include(Result, psem64);
     EM_PPC:
-      begin
-        if Is64 then
-          Include(Result, psem64);
-      end;
+    begin
+      if Is64 then
+        Include(Result, psem64);
+    end;
   end;
-  if IS64 then begin
+  if IS64 then
+  begin
     if FFileHeader64.e_ident[EI_DATA] = ELFDATA2LSB then
       Include(Result, psemLittleEndian)
     else
       Include(Result, psemBigEndian);
-  end else begin
+  end
+  else
+  begin
     if FFileHeader32.e_ident[EI_DATA] = ELFDATA2LSB then
       Include(Result, psemLittleEndian)
     else

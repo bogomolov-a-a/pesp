@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <Name Value="pesp"/>
+    <Type Value="RunAndDesignTime"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <SearchPaths>
+        <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files>
+      <Item>
+        <Filename Value="PseCmn.pas"/>
+        <UnitName Value="PseCmn"/>
+      </Item>
+      <Item>
+        <Filename Value="PseDebugInfo.pas"/>
+        <UnitName Value="PseDebugInfo"/>
+      </Item>
+      <Item>
+        <Filename Value="PseElf.pas"/>
+        <UnitName Value="PseElf"/>
+      </Item>
+      <Item>
+        <Filename Value="PseElfFile.pas"/>
+        <UnitName Value="PseElfFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseElfLoader.pas"/>
+        <UnitName Value="PseElfLoader"/>
+      </Item>
+      <Item>
+        <Filename Value="PseExportTable.pas"/>
+        <UnitName Value="PseExportTable"/>
+      </Item>
+      <Item>
+        <Filename Value="PseFile.pas"/>
+        <UnitName Value="PseFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseImgLoader.pas"/>
+        <UnitName Value="PseImgLoader"/>
+      </Item>
+      <Item>
+        <Filename Value="PseImportTable.pas"/>
+        <UnitName Value="PseImportTable"/>
+      </Item>
+      <Item>
+        <Filename Value="PseLibFile.pas"/>
+        <UnitName Value="PseLibFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseMapFileReader.pas"/>
+        <UnitName Value="PseMapFileReader"/>
+      </Item>
+      <Item>
+        <Filename Value="PseMz.pas"/>
+        <UnitName Value="PseMz"/>
+      </Item>
+      <Item>
+        <Filename Value="PseMzFile.pas"/>
+        <UnitName Value="PseMzFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseNe.pas"/>
+        <UnitName Value="PseNe"/>
+      </Item>
+      <Item>
+        <Filename Value="PseNeFile.pas"/>
+        <UnitName Value="PseNeFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseObjFile.pas"/>
+        <UnitName Value="PseObjFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PsePe.pas"/>
+        <UnitName Value="PsePe"/>
+      </Item>
+      <Item>
+        <Filename Value="PsePeFile.pas"/>
+        <UnitName Value="PsePeFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PsePeLoader.pas"/>
+        <UnitName Value="PsePeLoader"/>
+      </Item>
+      <Item>
+        <Filename Value="PseRawFile.pas"/>
+        <UnitName Value="PseRawFile"/>
+      </Item>
+      <Item>
+        <Filename Value="PseResource.pas"/>
+        <UnitName Value="PseResource"/>
+      </Item>
+      <Item>
+        <Filename Value="PseSection.pas"/>
+        <UnitName Value="PseSection"/>
+      </Item>
+      <Item>
+        <Filename Value="PseVirtMem.pas"/>
+        <UnitName Value="PseVirtMem"/>
+      </Item>
+    </Files>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="FCL"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
