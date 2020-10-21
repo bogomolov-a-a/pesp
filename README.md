@@ -1,5 +1,7 @@
 # Pascal Executable Parser
 
+**Mirrored from https://github.com/stievie/pesp , archived.**
+
 A collection of classes and functions to parse executable files for the Pascal
 language, namely for Free Pascal and Delphi. Everything is implemented in Pascal, 
 there are no external dependencies.
