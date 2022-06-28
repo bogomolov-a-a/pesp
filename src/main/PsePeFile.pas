@@ -25,10 +25,13 @@ type
     Micosoft. Microsoft Portable Executable and Common Object File Format
       Specification. Microsoft, February 2013.
   }
+
+  { TPsePeFile }
+
   TPsePeFile = class(TPseFile)
   private
     FDosHeader: TImageDosHeader;
-    FSignature: Cardinal;
+    FSignature: cardinal;
     FImageHeader: TImageFileHeader;
     FOptHeader32: TImageOptionalHeader32;
     FOptHeader64: TImageOptionalHeader64;
@@ -56,8 +59,9 @@ type
     function GetMaxHeapSize: UInt64; override;
 
     function GetImageBase: UInt64;
-    function GetSizeOfImage: Cardinal;
-    function GetNumberOfSections: Cardinal;
+    function GetSizeOfImage: cardinal;
+    function GetSizeOfFileImage(): cardinal; override;
+    function GetNumberOfSections: cardinal;
 
     function GetMachineString: string;
     function GetCharacteristicsString: string;
@@ -66,7 +70,7 @@ type
     function GetFriendlyName: string; override;
 
     property DosHeader: TImageDosHeader read FDosHeader;
-    property Signature: Cardinal read FSignature;
+    property Signature: cardinal read FSignature;
     property ImageHeader: TImageFileHeader read FImageHeader;
     property OptHeader32: TImageOptionalHeader32 read FOptHeader32;
     property OptHeader64: TImageOptionalHeader64 read FOptHeader64;
@@ -94,52 +98,58 @@ end;
 procedure TPsePeFile.SaveSectionToStream(const ASection: integer; Stream: TStream);
 var
   sec: TPseSection;
-  o, s: Int64;
+  o, s: int64;
 begin
   sec := FSections[ASection];
   o := RVAToOffset(sec.Address);
   FStream.Seek(o, soFromBeginning);
-  s := Min(Int64(sec.Size), Int64(FStream.Size - o));
+  s := Min(int64(sec.Size), int64(FStream.Size - o));
   Stream.CopyFrom(FStream, s);
 end;
 
 function TPsePeFile.LoadFromStream(Stream: TStream): boolean;
 begin
   Result := inherited;
-  if Result then begin
+  if Result then
+  begin
     FStream.Position := 0;
-    if (FStream.Read(FDosHeader, SizeOf(TImageDosHeader)) <> SizeOf(TImageDosHeader)) then
-      Exit(false);
+    if (FStream.Read(FDosHeader, SizeOf(TImageDosHeader)) <>
+      SizeOf(TImageDosHeader)) then
+      Exit(False);
     if FDosHeader.e_magic <> DOS_HEADER_MZ then
-      Exit(false);
+      Exit(False);
 
     FStream.Seek(FDosHeader._lfanew, soFromBeginning);
-    FStream.Read(FSignature, SizeOf(Cardinal));
+    FStream.Read(FSignature, SizeOf(cardinal));
     if FSignature <> IMG_HEADER_EP then
-      Exit(false);
+      Exit(False);
 
-    if (FStream.Read(FImageHeader, SizeOf(TImageFileHeader)) <> SizeOf(TImageFileHeader)) then
-      Exit(false);
+    if (FStream.Read(FImageHeader, SizeOf(TImageFileHeader)) <>
+      SizeOf(TImageFileHeader)) then
+      Exit(False);
 
     case FImageHeader.Machine of
       IMAGE_FILE_MACHINE_I386:
-        begin
-          FBitness := pseb32;
-          if (FStream.Read(FOptHeader32, SizeOf(TImageOptionalHeader32)) <> SizeOf(TImageOptionalHeader32)) then
-            Exit(false);
-        end;
+      begin
+        FBitness := pseb32;
+        if (FStream.Read(FOptHeader32, SizeOf(TImageOptionalHeader32)) <>
+          SizeOf(TImageOptionalHeader32)) then
+          Exit(False);
+      end;
       IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-        begin
-          FBitness := pseb64;
-          if (FStream.Read(FOptHeader64, SizeOf(TImageOptionalHeader64)) <> SizeOf(TImageOptionalHeader64)) then
-            Exit(false);
-        end;
+      begin
+        FBitness := pseb64;
+        if (FStream.Read(FOptHeader64, SizeOf(TImageOptionalHeader64)) <>
+          SizeOf(TImageOptionalHeader64)) then
+          Exit(False);
+      end;
     end;
     ReadSections;
     ReadExports;
     ReadImports;
     ReadDelayImports;
-    if FReadDebugInfo then begin
+    if FReadDebugInfo then
+    begin
       ReadDebugDirectory;
       ReadMapFile;
     end;
@@ -151,56 +161,65 @@ var
   debug_rva, offset: UInt64;
   debug_dir: TImageDebugDirectory;
   ansi_name: array[0..260] of AnsiChar;
-  wide_name: array[0..260] of WideChar;
+  wide_name: array[0..260] of widechar;
   debug_misc: TImageDebugMisc;
   coff_header: TImageCOFFSymbolsHeader;
 begin
-  if Is64 then begin
-    debug_rva := RVAToOffset(FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG].VirtualAddress);
-  end else begin
-    debug_rva := RVAToOffset(FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG].VirtualAddress);
+  if Is64 then
+  begin
+    debug_rva := RVAToOffset(FOptHeader64.DataDirectory[
+      IMAGE_DIRECTORY_ENTRY_DEBUG].VirtualAddress);
+  end
+  else
+  begin
+    debug_rva := RVAToOffset(FOptHeader32.DataDirectory[
+      IMAGE_DIRECTORY_ENTRY_DEBUG].VirtualAddress);
   end;
   if debug_rva = 0 then
     Exit;
 
   FStream.Seek(debug_rva, soFromBeginning);
-  if (FStream.Read(debug_dir, SizeOf(TImageDebugDirectory)) <> SizeOf(TImageDebugDirectory)) then
+  if (FStream.Read(debug_dir, SizeOf(TImageDebugDirectory)) <>
+    SizeOf(TImageDebugDirectory)) then
     Exit;
 
   case debug_dir._Type of
     IMAGE_DEBUG_TYPE_UNKNOWN:
       Exit;
     IMAGE_DEBUG_TYPE_COFF:
-      begin
-        // http://waleedassar.blogspot.co.at/search/label/IMAGE_DEBUG_TYPE_COFF
-        offset := debug_dir.PointerToRawData;
-        FStream.Seek(offset, soFromBeginning);
-        FStream.Read(coff_header, SizeOf(TImageCOFFSymbolsHeader));
-      end;
+    begin
+      // http://waleedassar.blogspot.co.at/search/label/IMAGE_DEBUG_TYPE_COFF
+      offset := debug_dir.PointerToRawData;
+      FStream.Seek(offset, soFromBeginning);
+      FStream.Read(coff_header, SizeOf(TImageCOFFSymbolsHeader));
+    end;
     IMAGE_DEBUG_TYPE_CODEVIEW:
-      begin
-      end;
+    begin
+    end;
     IMAGE_DEBUG_TYPE_FPO: ;
     IMAGE_DEBUG_TYPE_MISC:
+    begin
+      offset := debug_dir.PointerToRawData;
+      FStream.Seek(offset, soFromBeginning);
+      FStream.Read(debug_misc, SizeOf(TImageDebugMisc));
+      FStream.Seek(offset + SizeOf(TImageDebugMisc) - 1, soFromBeginning);
+      if debug_misc.Unicode then
       begin
-        offset := debug_dir.PointerToRawData;
-        FStream.Seek(offset, soFromBeginning);
-        FStream.Read(debug_misc, SizeOf(TImageDebugMisc));
-        FStream.Seek(offset + SizeOf(TImageDebugMisc) - 1, soFromBeginning);
-        if debug_misc.Unicode then begin
-          FStream.Read(wide_name, debug_misc.Length);
-        end else begin
-          FStream.Read(ansi_name, debug_misc.Length);
-        end;
+        FStream.Read(wide_name, debug_misc.Length);
+      end
+      else
+      begin
+        FStream.Read(ansi_name, debug_misc.Length);
       end;
+    end;
     IMAGE_DEBUG_TYPE_EXCEPTION: ;
-  else
-    Exit;
+    else
+      Exit;
   end;
 
-//  offset := debug_dir.PointerToRawData;
-//  FStream.Seek(offset, soFromBeginning);
-//  FStream.Read(arr, Min(256, debug_dir.SizeOfData));
+  //  offset := debug_dir.PointerToRawData;
+  //  FStream.Seek(offset, soFromBeginning);
+  //  FStream.Read(arr, Min(256, debug_dir.SizeOfData));
 end;
 
 procedure TPsePeFile.ReadMapFile;
@@ -209,12 +228,15 @@ var
   reader: TPseMapFileReader;
   dii: TDebugInfoItem;
 begin
-  if FFileName <> '' then begin
+  if FFileName <> '' then
+  begin
     fn := ChangeFileExt(FFileName, '.map');
-    if FileExists(fn) then begin
+    if FileExists(fn) then
+    begin
       reader := TPseMapFileReader.Create(fn);
       try
-        while reader.GetNext(dii) do begin
+        while reader.GetNext(dii) do
+        begin
           FDebugInfo.Add(dii);
         end;
       finally
@@ -229,12 +251,14 @@ var
   i: integer;
   sech: TImageSectionHeader;
   sec: TPseSection;
-  secname: AnsiString;
+  secname: ansistring;
   attribs: TSectionAttribs;
 begin
   FSections.Clear;
-  for i := 0 to FImageHeader.NumberOfSections - 1 do begin
-    if (FStream.Read(sech, SizeOf(TImageSectionHeader)) <> SizeOf(TImageSectionHeader)) then
+  for i := 0 to FImageHeader.NumberOfSections - 1 do
+  begin
+    if (FStream.Read(sech, SizeOf(TImageSectionHeader)) <>
+      SizeOf(TImageSectionHeader)) then
       Break;
     attribs := [];
     sec := FSections.New;
@@ -242,13 +266,20 @@ begin
     sec.PointerToRawData := sech.PointerToRawData;
     sec.Size := sech.Misc.VirtualSize;
     sec.OrigAttribs := sech.Characteristics;
+    sec.Size:=sech.SizeOfRawData;
     secname := StrPas(PAnsiChar(@sech.Name));
-    sec.Name := {$ifdef FPC}UTF8Decode{$else}UTF8ToString{$endif}(secname);
+    sec.Name :=
+{$ifdef FPC}UTF8Decode{$else}
+      UTF8ToString
+{$endif}
+      (secname);
     if (sech.Characteristics and IMAGE_SCN_CNT_CODE) = IMAGE_SCN_CNT_CODE then
       Include(attribs, saCode);
-    if (sech.Characteristics and IMAGE_SCN_CNT_INITIALIZED_DATA) = IMAGE_SCN_CNT_INITIALIZED_DATA then
+    if (sech.Characteristics and IMAGE_SCN_CNT_INITIALIZED_DATA) =
+      IMAGE_SCN_CNT_INITIALIZED_DATA then
       Include(attribs, saInitializedData);
-    if (sech.Characteristics and IMAGE_SCN_CNT_UNINITIALIZED_DATA) = IMAGE_SCN_CNT_UNINITIALIZED_DATA then
+    if (sech.Characteristics and IMAGE_SCN_CNT_UNINITIALIZED_DATA) =
+      IMAGE_SCN_CNT_UNINITIALIZED_DATA then
       Include(attribs, saData);
     if (sech.Characteristics and IMAGE_SCN_MEM_EXECUTE) = IMAGE_SCN_MEM_EXECUTE then
       Include(attribs, saExecuteable);
@@ -259,7 +290,8 @@ begin
 
     sec.Attribs := attribs;
   end;
-  for i := 0 to FSections.Count - 1 do begin
+  for i := 0 to FSections.Count - 1 do
+  begin
     sec := FSections[i];
     sec.FileOffset := RVAToOffset(sec.Address);
   end;
@@ -271,23 +303,29 @@ var
   expo: TImageExportDirectory;
   i: integer;
   expor: TPseExport;
-  name: array[0..255] of AnsiChar;
-  names: array[0..MAXWORD-1] of Cardinal;
-  ordinals: array[0..MAXWORD-1] of Word;
-  funcs: array[0..MAXWORD-1] of Cardinal;
+  Name: array[0..255] of AnsiChar;
+  names: array[0..MAXWORD - 1] of cardinal;
+  ordinals: array[0..MAXWORD - 1] of word;
+  funcs: array[0..MAXWORD - 1] of cardinal;
 begin
   FExports.Clear;
-  if Is64 then begin
-    export_rva := RVAToOffset(FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-  end else begin
-    export_rva := RVAToOffset(FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+  if Is64 then
+  begin
+    export_rva := RVAToOffset(
+      FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+  end
+  else
+  begin
+    export_rva := RVAToOffset(
+      FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
   end;
   if export_rva = 0 then
     // File has no exports
     Exit;
 
   FStream.Seek(export_rva, soFromBeginning);
-  if (FStream.Read(expo, SizeOf(TImageExportDirectory)) <> SizeOf(TImageExportDirectory)) then
+  if (FStream.Read(expo, SizeOf(TImageExportDirectory)) <>
+    SizeOf(TImageExportDirectory)) then
     Exit;
 
   FExports.NumNames := expo.NumberOfNames;
@@ -296,32 +334,36 @@ begin
 
   offset := RVAToOffset(expo.Name);
   FStream.Seek(offset, soFromBeginning);
-  FillChar(name, 256, 0);
-  FStream.Read(name, 256);
-  FExports.Name := string(StrPas(PAnsiChar(@name)));
+  FillChar(Name, 256, 0);
+  FStream.Read(Name, 256);
+  FExports.Name := string(StrPas(PAnsiChar(@Name)));
 
   offset := RVAToOffset(expo.AddressOfFunctions);
   FStream.Seek(offset, soFromBeginning);
-  FStream.Read(funcs, FExports.NumFuncs * SizeOf(Cardinal));
+  FStream.Read(funcs, FExports.NumFuncs * SizeOf(cardinal));
 
   offset := RVAToOffset(expo.AddressOfNames);
   FStream.Seek(offset, soFromBeginning);
-  FStream.Read(names, FExports.NumNames * SizeOf(Cardinal));
+  FStream.Read(names, FExports.NumNames * SizeOf(cardinal));
 
   offset := RVAToOffset(expo.AddressOfNameOrdinals);
   FStream.Seek(offset, soFromBeginning);
-  FStream.Read(ordinals, FExports.NumFuncs * SizeOf(Word));
+  FStream.Read(ordinals, FExports.NumFuncs * SizeOf(word));
 
-  for i := 0 to FExports.NumFuncs - 1 do begin
+  for i := 0 to FExports.NumFuncs - 1 do
+  begin
     expor := FExports.New;
-    if i < FExports.NumNames then begin
-      FillChar(name, 256, 0);
+    if i < FExports.NumNames then
+    begin
+      FillChar(Name, 256, 0);
       offset := RVAToOffset(names[i]);
       FStream.Seek(offset, soFromBeginning);
-      FStream.Read(name, 256);
-      expor.Name := string(StrPas(PAnsiChar(@name)));
+      FStream.Read(Name, 256);
+      expor.Name := string(StrPas(PAnsiChar(@Name)));
       expor.Ordinal := ordinals[i];
-    end else begin
+    end
+    else
+    begin
       expor.Name := '(No name)';
       expor.Ordinal := i;
     end;
@@ -342,23 +384,29 @@ var
     Move(impo, pi^, SizeOf(TImgDelayDescr));
     impo_list.Add(pi);
   end;
+
 var
   import_rva, offset: UInt64;
   did: TImgDelayDescr;
   pimpo: PImgDelayDescr;
   i: integer;
-  name: array[0..255] of AnsiChar;
+  Name: array[0..255] of AnsiChar;
   import_obj: TPseImport;
   thunk64: TImageThunkData64;
   thunk32: TImageThunkData32;
-  stream_pos: Int64;
+  stream_pos: int64;
   imp_api: TPseApi;
-  name_hint: Word;
+  name_hint: word;
 begin
-  if Is64 then begin
-    import_rva := RVAToOffset(FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT].VirtualAddress);
-  end else begin
-    import_rva := RVAToOffset(FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT].VirtualAddress);
+  if Is64 then
+  begin
+    import_rva := RVAToOffset(
+      FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT].VirtualAddress);
+  end
+  else
+  begin
+    import_rva := RVAToOffset(
+      FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT].VirtualAddress);
   end;
   if (import_rva = 0) then
     Exit;
@@ -369,55 +417,64 @@ begin
     if (FStream.Read(did, SizeOf(TImgDelayDescr)) <> SizeOf(TImgDelayDescr)) then
       Exit;
 
-    while (did.rvaDLLName <> 0) do begin
+    while (did.rvaDLLName <> 0) do
+    begin
       AddToImpo(did);
       if (FStream.Read(did, SizeOf(TImgDelayDescr)) <> SizeOf(TImgDelayDescr)) then
         Break;
     end;
 
-    for i := 0 to impo_list.Count - 1 do begin
+    for i := 0 to impo_list.Count - 1 do
+    begin
       offset := RVAToOffset(PImgDelayDescr(impo_list[i])^.rvaDLLName);
       if offset = 0 then
         Continue;
 
       import_obj := FImports.New;
-      import_obj.DelayLoad := true;
-      FillChar(name, 256, 0);
+      import_obj.DelayLoad := True;
+      FillChar(Name, 256, 0);
       FStream.Seek(offset, soFromBeginning);
-      FStream.Read(name, 256);
-      import_obj.DllName := string(StrPas(PAnsiChar(@name)));
+      FStream.Read(Name, 256);
+      import_obj.DllName := string(StrPas(PAnsiChar(@Name)));
 
       offset := RVAToOffset(PImgDelayDescr(impo_list[i])^.rvaINT);
       FStream.Seek(offset, soFromBeginning);
-      if Is64 then begin
+      if Is64 then
+      begin
         FStream.Read(thunk64, SizeOf(TImageThunkData64));
-        while thunk64._Function <> 0 do begin
+        while thunk64._Function <> 0 do
+        begin
           imp_api := import_obj.New;
           stream_pos := FStream.Position;
           FStream.Seek(RVAToOffset(thunk64.AddressOfData), soFromBeginning);
-          FStream.Read(name_hint, SizeOf(Word));
+          FStream.Read(name_hint, SizeOf(word));
           imp_api.Hint := name_hint;
-          if (thunk64.Ordinal and IMAGE_ORDINAL_FLAG64) = 0 then begin
-            FillChar(name, 256, 0);
-            FStream.Read(name, 256);
-            imp_api.Name := string(StrPas(PAnsiChar(@name)));
+          if (thunk64.Ordinal and IMAGE_ORDINAL_FLAG64) = 0 then
+          begin
+            FillChar(Name, 256, 0);
+            FStream.Read(Name, 256);
+            imp_api.Name := string(StrPas(PAnsiChar(@Name)));
           end;
           imp_api.Address := thunk64._Function;
           FStream.Position := stream_pos;
           FStream.Read(thunk64, SizeOf(TImageThunkData64));
         end;
-      end else begin
+      end
+      else
+      begin
         FStream.Read(thunk32, SizeOf(TImageThunkData32));
-        while thunk32._Function <> 0 do begin
+        while thunk32._Function <> 0 do
+        begin
           imp_api := import_obj.New;
           stream_pos := FStream.Position;
           FStream.Seek(RVAToOffset(thunk32.AddressOfData), soFromBeginning);
-          FStream.Read(name_hint, SizeOf(Word));
+          FStream.Read(name_hint, SizeOf(word));
           imp_api.Hint := name_hint;
-          if (thunk32.Ordinal and IMAGE_ORDINAL_FLAG32) = 0 then begin
-            FillChar(name, 256, 0);
-            FStream.Read(name, 256);
-            imp_api.Name := string(StrPas(PAnsiChar(@name)));
+          if (thunk32.Ordinal and IMAGE_ORDINAL_FLAG32) = 0 then
+          begin
+            FillChar(Name, 256, 0);
+            FStream.Read(Name, 256);
+            imp_api.Name := string(StrPas(PAnsiChar(@Name)));
           end;
           imp_api.Address := (thunk32._Function);
 
@@ -428,7 +485,8 @@ begin
       end;
     end;
   finally
-    for i := 0 to impo_list.Count - 1 do begin
+    for i := 0 to impo_list.Count - 1 do
+    begin
       pimpo := PImgDelayDescr(impo_list[i]);
       Dispose(pimpo);
     end;
@@ -453,22 +511,27 @@ var
   import_rva, offset: UInt64;
   impo: TImageImportDescriptor;
   pimpo: PImageImportDescriptor;
-  name_hint: Word;
+  name_hint: word;
   i: integer;
-  name: array[0..255] of AnsiChar;
+  Name: array[0..255] of AnsiChar;
   import_obj: TPseImport;
   imp_api: TPseApi;
-  api_names: Cardinal;
+  api_names: cardinal;
   api_addresses: UInt64;
   thunk64: TImageThunkData64;
   thunk32: TImageThunkData32;
-  stream_pos: Int64;
+  stream_pos: int64;
 begin
   FImports.Clear;
-  if Is64 then begin
-    import_rva := RVAToOffset(FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
-  end else begin
-    import_rva := RVAToOffset(FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+  if Is64 then
+  begin
+    import_rva := RVAToOffset(
+      FOptHeader64.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+  end
+  else
+  begin
+    import_rva := RVAToOffset(
+      FOptHeader32.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
   end;
   if (import_rva = 0) then
     // Hm, really no imports
@@ -477,61 +540,72 @@ begin
   impo_list := TList.Create;
   try
     FStream.Seek(import_rva, soFromBeginning);
-    if (FStream.Read(impo, SizeOf(TImageImportDescriptor)) <> SizeOf(TImageImportDescriptor)) then
+    if (FStream.Read(impo, SizeOf(TImageImportDescriptor)) <>
+      SizeOf(TImageImportDescriptor)) then
       Exit;
-    while ((impo.FirstThunk <> 0) and (impo.Name <> 0)) do begin
+    while ((impo.FirstThunk <> 0) and (impo.Name <> 0)) do
+    begin
       AddToImpo(impo);
-      if (FStream.Read(impo, SizeOf(TImageImportDescriptor)) <> SizeOf(TImageImportDescriptor)) then
+      if (FStream.Read(impo, SizeOf(TImageImportDescriptor)) <>
+        SizeOf(TImageImportDescriptor)) then
         Break;
     end;
 
-    for i := 0 to impo_list.Count - 1 do begin
+    for i := 0 to impo_list.Count - 1 do
+    begin
       import_obj := FImports.New;
       offset := RVAToOffset(PImageImportDescriptor(impo_list[i])^.Name);
-      FillChar(name, 256, 0);
+      FillChar(Name, 256, 0);
       FStream.Seek(offset, soFromBeginning);
-      FStream.Read(name, 256);
-      import_obj.DllName := string(StrPas(PAnsiChar(@name)));
+      FStream.Read(Name, 256);
+      import_obj.DllName := string(StrPas(PAnsiChar(@Name)));
 
-  //    if impo[i].OriginalFirstThunk <> 0 then begin
-  //      api_names := impo[i].OriginalFirstThunk;
-  //    end else begin
-        api_names := PImageImportDescriptor(impo_list[i])^.FirstThunk;
-  //    end;
+      //    if impo[i].OriginalFirstThunk <> 0 then begin
+      //      api_names := impo[i].OriginalFirstThunk;
+      //    end else begin
+      api_names := PImageImportDescriptor(impo_list[i])^.FirstThunk;
+      //    end;
       if RVAToOffset(api_names) <> 0 then
         api_names := RVAToOffset(api_names);
       api_addresses := PImageImportDescriptor(impo_list[i])^.FirstThunk + GetImageBase;
 
       FStream.Seek(api_names, soFromBeginning);
-      if Is64 then begin
+      if Is64 then
+      begin
         FStream.Read(thunk64, SizeOf(TImageThunkData64));
-        while thunk64._Function <> 0 do begin
+        while thunk64._Function <> 0 do
+        begin
           imp_api := import_obj.New;
           stream_pos := FStream.Position;
           FStream.Seek(RVAToOffset(thunk64.AddressOfData), soFromBeginning);
-          FStream.Read(name_hint, SizeOf(Word));
+          FStream.Read(name_hint, SizeOf(word));
           imp_api.Hint := name_hint;
-          if (thunk64.Ordinal and IMAGE_ORDINAL_FLAG64) = 0 then begin
-            FillChar(name, 256, 0);
-            FStream.Read(name, 256);
-            imp_api.Name := string(StrPas(PAnsiChar(@name)));
+          if (thunk64.Ordinal and IMAGE_ORDINAL_FLAG64) = 0 then
+          begin
+            FillChar(Name, 256, 0);
+            FStream.Read(Name, 256);
+            imp_api.Name := string(StrPas(PAnsiChar(@Name)));
           end;
           imp_api.Address := thunk64._Function;
           FStream.Position := stream_pos;
           FStream.Read(thunk64, SizeOf(TImageThunkData64));
         end;
-      end else begin
+      end
+      else
+      begin
         FStream.Read(thunk32, SizeOf(TImageThunkData32));
-        while thunk32._Function <> 0 do begin
+        while thunk32._Function <> 0 do
+        begin
           imp_api := import_obj.New;
           stream_pos := FStream.Position;
           FStream.Seek(RVAToOffset(thunk32.AddressOfData), soFromBeginning);
-          FStream.Read(name_hint, SizeOf(Word));
+          FStream.Read(name_hint, SizeOf(word));
           imp_api.Hint := name_hint;
-          if (thunk32.Ordinal and IMAGE_ORDINAL_FLAG32) = 0 then begin
-            FillChar(name, 256, 0);
-            FStream.Read(name, 256);
-            imp_api.Name := string(StrPas(PAnsiChar(@name)));
+          if (thunk32.Ordinal and IMAGE_ORDINAL_FLAG32) = 0 then
+          begin
+            FillChar(Name, 256, 0);
+            FStream.Read(Name, 256);
+            imp_api.Name := string(StrPas(PAnsiChar(@Name)));
           end;
           imp_api.Address := (thunk32._Function);
 
@@ -541,7 +615,8 @@ begin
       end;
     end;
   finally
-    for i := 0 to impo_list.Count - 1 do begin
+    for i := 0 to impo_list.Count - 1 do
+    begin
       pimpo := PImageImportDescriptor(impo_list[i]);
       Dispose(pimpo);
     end;
@@ -555,17 +630,22 @@ var
   i: integer;
 begin
   r := RVA;
-  if (r > GetSizeOfImage) then begin
-    if (r > GetImageBase) then begin
+  if (r > GetSizeOfImage) then
+  begin
+    if (r > GetImageBase) then
+    begin
       Dec(r, GetImageBase);
       if (r > GetSizeOfImage) then
         Exit(0);
-    end else
+    end
+    else
       Exit(0);
   end;
 
-  for i := 0 to FImageHeader.NumberOfSections - 1 do begin
-    if (r >= FSections[i].Address) and (r < (FSections[i].Address + FSections[i].Size)) then
+  for i := 0 to FImageHeader.NumberOfSections - 1 do
+  begin
+    if (r >= FSections[i].Address) and
+      (r < (FSections[i].Address + FSections[i].Size)) then
       Exit(r - FSections[i].Address + FSections[i].PointerToRawData);
   end;
   Result := 0;
@@ -576,28 +656,30 @@ var
   i: integer;
   sec: TPseSection;
 begin
-  for i := 0 to FSections.Count - 1 do begin
+  for i := 0 to FSections.Count - 1 do
+  begin
     sec := FSections[i];
-    if (saCode in sec.Attribs) and (saExecuteable in sec.Attribs) then begin
+    if (saCode in sec.Attribs) and (saExecuteable in sec.Attribs) then
+    begin
       AAddr := sec.Address;
       ASize := sec.Size;
-      Exit(true);
+      Exit(True);
     end;
   end;
-  Result := false;
+  Result := False;
 end;
 
 function TPsePeFile.GetInitStackSize: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.SizeOfStackCommit;
-      end;
+    begin
+      Result := FOptHeader32.SizeOfStackCommit;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.SizeOfStackCommit;
-      end;
+    begin
+      Result := FOptHeader64.SizeOfStackCommit;
+    end;
     else
       Result := inherited;
   end;
@@ -607,13 +689,13 @@ function TPsePeFile.GetMaxStackSize: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.SizeOfStackReserve;
-      end;
+    begin
+      Result := FOptHeader32.SizeOfStackReserve;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.SizeOfStackReserve;
-      end;
+    begin
+      Result := FOptHeader64.SizeOfStackReserve;
+    end;
     else
       Result := inherited;
   end;
@@ -623,13 +705,13 @@ function TPsePeFile.GetInitHeapSize: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.SizeOfHeapCommit;
-      end;
+    begin
+      Result := FOptHeader32.SizeOfHeapCommit;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.SizeOfHeapCommit;
-      end;
+    begin
+      Result := FOptHeader64.SizeOfHeapCommit;
+    end;
     else
       Result := inherited;
   end;
@@ -639,13 +721,13 @@ function TPsePeFile.GetMaxHeapSize: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.SizeOfHeapReserve;
-      end;
+    begin
+      Result := FOptHeader32.SizeOfHeapReserve;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.SizeOfHeapReserve;
-      end;
+    begin
+      Result := FOptHeader64.SizeOfHeapReserve;
+    end;
     else
       Result := inherited;
   end;
@@ -655,9 +737,11 @@ function TPsePeFile.GetFirstAddr: UInt64;
 var
   addr, size: UInt64;
 begin
-  if GetCodeSection(addr, size) then begin
+  if GetCodeSection(addr, size) then
+  begin
     Result := addr + GetImageBase;
-  end else
+  end
+  else
     Result := 0;
 end;
 
@@ -665,35 +749,50 @@ function TPsePeFile.GetImageBase: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.ImageBase;
-      end;
+    begin
+      Result := FOptHeader32.ImageBase;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.ImageBase;
-      end;
+    begin
+      Result := FOptHeader64.ImageBase;
+    end;
     else
       Result := 0;
   end;
 end;
 
-function TPsePeFile.GetSizeOfImage: Cardinal;
+function TPsePeFile.GetSizeOfImage: cardinal;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := FOptHeader32.SizeOfImage;
-      end;
+    begin
+      Result := FOptHeader32.SizeOfImage;
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.SizeOfImage;
-      end;
+    begin
+      Result := FOptHeader64.SizeOfImage;
+    end;
     else
       Result := 0;
   end;
 end;
 
-function TPsePeFile.GetNumberOfSections: Cardinal;
+function TPsePeFile.GetSizeOfFileImage(): cardinal;
+var
+  i: integer;
+begin
+  if Is64 then
+    Result := FOptHeader64.SizeOfHeaders
+  else
+    Result := FOptHeader32.SizeOfHeaders;
+
+  for i := 0 to FSections.Count - 1 do
+  begin
+    Inc(Result, (FSections.Items[i] as TPseSection).Size);
+  end;
+end;
+
+function TPsePeFile.GetNumberOfSections: cardinal;
 begin
   Result := FImageHeader.NumberOfSections;
 end;
@@ -702,13 +801,14 @@ function TPsePeFile.GetEntryPoint: UInt64;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := UInt64(FOptHeader32.AddressOfEntryPoint) + UInt64(FOptHeader32.ImageBase);
-      end;
+    begin
+      Result := UInt64(FOptHeader32.AddressOfEntryPoint) +
+        UInt64(FOptHeader32.ImageBase);
+    end;
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := FOptHeader64.AddressOfEntryPoint + FOptHeader64.ImageBase;
-      end;
+    begin
+      Result := FOptHeader64.AddressOfEntryPoint + FOptHeader64.ImageBase;
+    end;
     else
       Result := 0;
   end;
@@ -719,19 +819,19 @@ begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386,
     IMAGE_FILE_MACHINE_AMD64:
-      begin
-        Result := pseaX86;
-      end;
+    begin
+      Result := pseaX86;
+    end;
     IMAGE_FILE_MACHINE_R3000,
     IMAGE_FILE_MACHINE_R4000,
     IMAGE_FILE_MACHINE_R10000:
-      begin
-        Result := pseaMIPS;
-      end;
+    begin
+      Result := pseaMIPS;
+    end;
     IMAGE_FILE_MACHINE_POWERPC:
-      begin
-        Result := pseaPPC;
-      end
+    begin
+      Result := pseaPPC;
+    end
     else
       Result := pseaUnknown;
   end;
@@ -741,14 +841,14 @@ function TPsePeFile.GetMode: TPseMode;
 begin
   case FImageHeader.Machine of
     IMAGE_FILE_MACHINE_I386:
-      begin
-        Result := [psem32];
-      end;
+    begin
+      Result := [psem32];
+    end;
     IMAGE_FILE_MACHINE_AMD64,
     IMAGE_FILE_MACHINE_IA64:
-      begin
-        Result := [psem64];
-      end;
+    begin
+      Result := [psem64];
+    end;
     else
       Result := [];
   end;
@@ -766,7 +866,7 @@ end;
 
 function TPsePeFile.GetSubsystemString: string;
 var
-  ssys: Word;
+  ssys: word;
 begin
   if Is64 then
     ssys := FOptHeader64.Subsystem

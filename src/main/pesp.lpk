@@ -1,112 +1,116 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
-  <Package Version="5">
+  <Package Version="4">
     <Name Value="pesp"/>
     <Type Value="RunAndDesignTime"/>
     <CompilerOptions>
       <Version Value="11"/>
       <SearchPaths>
-        <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/"/>
+        <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files>
-      <Item>
+    <Files Count="24">
+      <Item1>
+        <Filename Value="pesp.pas"/>
+        <UnitName Value="pesp"/>
+      </Item1>
+      <Item2>
         <Filename Value="PseCmn.pas"/>
         <UnitName Value="PseCmn"/>
-      </Item>
-      <Item>
+      </Item2>
+      <Item3>
         <Filename Value="PseDebugInfo.pas"/>
         <UnitName Value="PseDebugInfo"/>
-      </Item>
-      <Item>
+      </Item3>
+      <Item4>
         <Filename Value="PseElf.pas"/>
         <UnitName Value="PseElf"/>
-      </Item>
-      <Item>
+      </Item4>
+      <Item5>
         <Filename Value="PseElfFile.pas"/>
         <UnitName Value="PseElfFile"/>
-      </Item>
-      <Item>
+      </Item5>
+      <Item6>
         <Filename Value="PseElfLoader.pas"/>
         <UnitName Value="PseElfLoader"/>
-      </Item>
-      <Item>
+      </Item6>
+      <Item7>
         <Filename Value="PseExportTable.pas"/>
         <UnitName Value="PseExportTable"/>
-      </Item>
-      <Item>
+      </Item7>
+      <Item8>
         <Filename Value="PseFile.pas"/>
         <UnitName Value="PseFile"/>
-      </Item>
-      <Item>
+      </Item8>
+      <Item9>
         <Filename Value="PseImgLoader.pas"/>
         <UnitName Value="PseImgLoader"/>
-      </Item>
-      <Item>
+      </Item9>
+      <Item10>
         <Filename Value="PseImportTable.pas"/>
         <UnitName Value="PseImportTable"/>
-      </Item>
-      <Item>
+      </Item10>
+      <Item11>
         <Filename Value="PseLibFile.pas"/>
         <UnitName Value="PseLibFile"/>
-      </Item>
-      <Item>
+      </Item11>
+      <Item12>
         <Filename Value="PseMapFileReader.pas"/>
         <UnitName Value="PseMapFileReader"/>
-      </Item>
-      <Item>
+      </Item12>
+      <Item13>
         <Filename Value="PseMz.pas"/>
         <UnitName Value="PseMz"/>
-      </Item>
-      <Item>
+      </Item13>
+      <Item14>
         <Filename Value="PseMzFile.pas"/>
         <UnitName Value="PseMzFile"/>
-      </Item>
-      <Item>
+      </Item14>
+      <Item15>
         <Filename Value="PseNe.pas"/>
         <UnitName Value="PseNe"/>
-      </Item>
-      <Item>
+      </Item15>
+      <Item16>
         <Filename Value="PseNeFile.pas"/>
         <UnitName Value="PseNeFile"/>
-      </Item>
-      <Item>
+      </Item16>
+      <Item17>
         <Filename Value="PseObjFile.pas"/>
         <UnitName Value="PseObjFile"/>
-      </Item>
-      <Item>
+      </Item17>
+      <Item18>
         <Filename Value="PsePe.pas"/>
         <UnitName Value="PsePe"/>
-      </Item>
-      <Item>
+      </Item18>
+      <Item19>
         <Filename Value="PsePeFile.pas"/>
         <UnitName Value="PsePeFile"/>
-      </Item>
-      <Item>
+      </Item19>
+      <Item20>
         <Filename Value="PsePeLoader.pas"/>
         <UnitName Value="PsePeLoader"/>
-      </Item>
-      <Item>
+      </Item20>
+      <Item21>
         <Filename Value="PseRawFile.pas"/>
         <UnitName Value="PseRawFile"/>
-      </Item>
-      <Item>
+      </Item21>
+      <Item22>
         <Filename Value="PseResource.pas"/>
         <UnitName Value="PseResource"/>
-      </Item>
-      <Item>
+      </Item22>
+      <Item23>
         <Filename Value="PseSection.pas"/>
         <UnitName Value="PseSection"/>
-      </Item>
-      <Item>
+      </Item23>
+      <Item24>
         <Filename Value="PseVirtMem.pas"/>
         <UnitName Value="PseVirtMem"/>
-      </Item>
+      </Item24>
     </Files>
-    <RequiredPkgs>
-      <Item>
-        <PackageName Value="FCL"/>
-      </Item>
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="IDEIntf"/>
+      </Item1>
     </RequiredPkgs>
     <UsageOptions>
       <UnitPath Value="$(PkgOutDir)"/>
